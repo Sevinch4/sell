@@ -32,3 +32,10 @@ type BasketsResponse struct {
 	Baskets []Basket `json:"basket"`
 	Count   int      `json:"count"`
 }
+
+type BasketGetListRequest struct {
+	Page      int
+	Limit     int
+	SaleID    string
+	ProductID string
+}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"sell/api/models"
@@ -32,32 +33,35 @@ func (h Handler) EndSell(c *gin.Context) {
 		return
 	}
 
-	var (
-		productIDs        = make(map[string]string)
-		productQuantities = make(map[string]int)
-	)
-	for _, value := range baskets.Baskets {
-		productIDs[value.ID] = value.ProductID
-		productQuantities[value.ID] = value.Quantity
-	}
+	//var (
+	//	productIDs        = make(map[string]string)
+	//	productQuantities = make(map[string]int)
+	//)
+	//for _, value := range baskets.Baskets {
+	//	productIDs[value.ID] = value.ProductID
+	//	productQuantities[value.ID] = value.Quantity
+	//}
+	//
+	//products := make(map[string]int)
+	//
+	//for key, value := range productIDs {
+	//	product, err := h.storage.Product().GetByID(context.Background(), value)
+	//	if err != nil {
+	//		handleResponse(c, "error is while getting product", http.StatusInternalServerError, err.Error())
+	//		return
+	//	}
+	//	products[key] = product.Price
+	//}
 
-	products := make(map[string]int)
-
-	for key, value := range productIDs {
-		product, err := h.storage.Product().GetByID(context.Background(), value)
-		if err != nil {
-			handleResponse(c, "error is while getting product", http.StatusInternalServerError, err.Error())
-			return
-		}
-		products[key] = product.Price
-	}
+	fmt.Println("baskets", baskets)
 
 	totalPrice := 0
 
-	for key, value := range productQuantities {
-		totalPrice += value * products[key]
+	for _, value := range baskets.Baskets {
+		totalPrice += value.Price
 	}
 
+	fmt.Println("totalprice", totalPrice)
 	id, err := h.storage.Sale().UpdatePrice(context.Background(), totalPrice, saleID)
 	if err != nil {
 		handleResponse(c, "error is while updating price", http.StatusInternalServerError, err.Error())

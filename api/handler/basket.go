@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sell/api/models"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,21 +30,86 @@ func (h Handler) CreateBasket(c *gin.Context) {
 		return
 	}
 
+	product, err := h.storage.Product().GetByID(context.Background(), basket.ProductID)
+	if err != nil {
+		handleResponse(c, "error is while getting product by id", http.StatusInternalServerError, err.Error())
+	}
+
+	totalSum := product.Price * basket.Quantity
+
+	baskets, err := h.storage.Basket().GetList(context.Background(), models.GetListRequest{
+		Page:   1,
+		Limit:  10,
+		Search: basket.SaleID,
+	})
+	var (
+		quantity, price int
+		id              string
+	)
+
+	isTrue := false
+
+
+	repo, err := h.storage.Repository().GetList(context.Background(), models.GetListRequest{
+		Page:   1,
+		Limit:  10,
+		Search: basket.ProductID,
+	})
+	if err != nil {
+		handleResponse(c, "error while getting repo", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var repoQuantity int
+
+	for _, repository := range repo.Repositories {
+		repoQuantity = repository.Count
+	}
+
+	if repoQuantity < basket.Quantity {
+		handleResponse(c, "not enough product", 300, "not enough product")
+		return
+	}
+
+	basket.Price = totalSum
 	id, err := h.storage.Basket().Create(context.Background(), basket)
 	if err != nil {
 		handleResponse(c, "error while creating basket", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	createdBasket, err := h.storage.Basket().GetByID(context.Background(), models.PrimaryKey{
-		ID: id,
-	})
-	if err != nil {
-		handleResponse(c, "error while getting by ID", http.StatusInternalServerError, err.Error())
-		return
+	for _, value := range baskets.Baskets {
+
+		if basket.ProductID == value.ProductID {
+			isTrue = true
+			// Update
+		}
+
 	}
 
-	handleResponse(c, "", http.StatusCreated, createdBasket)
+	if !isTrue {
+		//Create
+		id, err := h.storage.Basket().Create(context.Background(), basket)
+		if err != nil {
+			handleResponse(c, "error while creating basket", http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+	if err != nil {
+		}
+
+
+
+		createdBasket, err := h.storage.Basket().GetByID(context.Background(), models.PrimaryKey{
+			ID: id,
+		})
+		if err != nil {
+			handleResponse(c, "error while getting by ID", http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		handleResponse(c, "", http.StatusCreated, createdBasket)
+	}
 }
 
 // GetBasket godoc

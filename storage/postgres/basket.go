@@ -25,7 +25,7 @@ func (s *basketRepo) Create(ctx context.Context, basket models.CreateBasket) (st
 
 	if _, err := s.DB.Exec(ctx, `INSERT INTO baskets 
 		(id, sale_id, product_id, price, quantity)
-			VALUES($1, $2, $3, $4, $5)`,
+			VALUES($1, $2, $3, $4, $5) `,
 		id,
 		basket.SaleID,
 		basket.ProductID,
@@ -67,7 +67,7 @@ func (s *basketRepo) GetList(ctx context.Context, request models.GetListRequest)
 
 	countQuery := `SELECT COUNT(*) FROM baskets where deleted_at is null`
 	if request.Search != "" {
-		countQuery += fmt.Sprintf(` and sale_id = '%s'`, request.Search)
+		countQuery += fmt.Sprintf(` and sale_id = '%s' and product_id = '%s'`, request.Search, request.Search)
 	}
 
 	err := s.DB.QueryRow(ctx, countQuery).Scan(&count)
@@ -79,7 +79,7 @@ func (s *basketRepo) GetList(ctx context.Context, request models.GetListRequest)
 	query := `SELECT id, sale_id, product_id, quantity, price, created_at, updated_at
 						FROM baskets where deleted_at is null`
 	if request.Search != "" {
-		query += fmt.Sprintf(` and sale_id = '%s'`, request.Search)
+		query += fmt.Sprintf(` and sale_id = '%s' and product_id = '%s'`, request.Search, request.Search)
 	}
 	query += ` order by created_at desc LIMIT $1 OFFSET $2 `
 

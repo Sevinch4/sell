@@ -66,7 +66,7 @@ func (s *repositoryRepo) GetList(ctx context.Context, request models.GetListRequ
 
 	countQuery := `SELECT COUNT(*) FROM repositories where deleted_at is null`
 	if request.Search != "" {
-		countQuery += fmt.Sprintf(` and branch_id = '%s'`, request.Search)
+		countQuery += fmt.Sprintf(` and product_id = '%s'`, request.Search)
 	}
 
 	err := s.DB.QueryRow(ctx, countQuery).Scan(&count)
@@ -77,7 +77,7 @@ func (s *repositoryRepo) GetList(ctx context.Context, request models.GetListRequ
 
 	query := `SELECT id, product_id, branch_id, count, created_at, updated_at FROM repositories where deleted_at is null`
 	if request.Search != "" {
-		query += fmt.Sprintf(` and branch_id = '%s'`, request.Search)
+		query += fmt.Sprintf(` and product_id = '%s'`, request.Search)
 	}
 	query += ` order by created_at desc LIMIT $1 OFFSET $2 `
 
