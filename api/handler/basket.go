@@ -2,12 +2,10 @@ package handler
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"sell/api/models"
 	"strconv"
-	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
 // CreateBasket godoc
@@ -37,19 +35,6 @@ func (h Handler) CreateBasket(c *gin.Context) {
 
 	totalSum := product.Price * basket.Quantity
 
-	baskets, err := h.storage.Basket().GetList(context.Background(), models.GetListRequest{
-		Page:   1,
-		Limit:  10,
-		Search: basket.SaleID,
-	})
-	var (
-		quantity, price int
-		id              string
-	)
-
-	isTrue := false
-
-
 	repo, err := h.storage.Repository().GetList(context.Background(), models.GetListRequest{
 		Page:   1,
 		Limit:  10,
@@ -60,56 +45,68 @@ func (h Handler) CreateBasket(c *gin.Context) {
 		return
 	}
 
-	var repoQuantity int
-
 	for _, repository := range repo.Repositories {
-		repoQuantity = repository.Count
+		if repository.Count < basket.Quantity {
+			handleResponse(c, "not enough product", 300, "not enough product")
+			return
+		}
 	}
 
-	if repoQuantity < basket.Quantity {
-		handleResponse(c, "not enough product", 300, "not enough product")
-		return
-	}
+	baskets, err := h.storage.Basket().GetList(context.Background(), models.GetListRequest{
+		Page:   1,
+		Limit:  10,
+		Search: basket.SaleID,
+	})
 
-	basket.Price = totalSum
-	id, err := h.storage.Basket().Create(context.Background(), basket)
-	if err != nil {
-		handleResponse(c, "error while creating basket", http.StatusInternalServerError, err.Error())
-		return
-	}
+	isTrue := false
 
 	for _, value := range baskets.Baskets {
-
 		if basket.ProductID == value.ProductID {
+			for _, repository := range repo.Repositories {
+				if repository.Count < basket.Quantity+value.Quantity {
+					handleResponse(c, "not enough product", 300, "not enough product")
+					return
+				}
+			}
 			isTrue = true
 			// Update
+			id, err := h.storage.Basket().Update(context.Background(), models.UpdateBasket{
+				ID:        value.ID,
+				SaleID:    value.SaleID,
+				ProductID: value.ProductID,
+				Quantity:  value.Quantity + basket.Quantity,
+				Price:     value.Price + totalSum,
+			})
+			if err != nil {
+				handleResponse(c, "error is while updating basket", http.StatusInternalServerError, err.Error())
+				return
+			}
+			updatedBasket, err := h.storage.Basket().GetByID(context.Background(), models.PrimaryKey{ID: id})
+			if err != nil {
+				handleResponse(c, "error is while getting basket by id", http.StatusInternalServerError, err.Error())
+				return
+			}
+			handleResponse(c, "updated", http.StatusOK, updatedBasket)
 		}
 
 	}
 
 	if !isTrue {
 		//Create
+		basket.Price = totalSum
 		id, err := h.storage.Basket().Create(context.Background(), basket)
 		if err != nil {
 			handleResponse(c, "error while creating basket", http.StatusInternalServerError, err.Error())
 			return
 		}
-	}
-	if err != nil {
-		}
-
-
-
-		createdBasket, err := h.storage.Basket().GetByID(context.Background(), models.PrimaryKey{
-			ID: id,
-		})
+		createdBasket, err := h.storage.Basket().GetByID(context.Background(), models.PrimaryKey{ID: id})
 		if err != nil {
-			handleResponse(c, "error while getting by ID", http.StatusInternalServerError, err.Error())
+			handleResponse(c, "error is while getting basket by id", http.StatusInternalServerError, err.Error())
 			return
 		}
-
-		handleResponse(c, "", http.StatusCreated, createdBasket)
+		handleResponse(c, "created", http.StatusOK, createdBasket)
 	}
+
 }
 
 // GetBasket godoc

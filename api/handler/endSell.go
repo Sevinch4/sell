@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"sell/api/models"
@@ -33,35 +32,16 @@ func (h Handler) EndSell(c *gin.Context) {
 		return
 	}
 
-	//var (
-	//	productIDs        = make(map[string]string)
-	//	productQuantities = make(map[string]int)
-	//)
-	//for _, value := range baskets.Baskets {
-	//	productIDs[value.ID] = value.ProductID
-	//	productQuantities[value.ID] = value.Quantity
-	//}
-	//
-	//products := make(map[string]int)
-	//
-	//for key, value := range productIDs {
-	//	product, err := h.storage.Product().GetByID(context.Background(), value)
-	//	if err != nil {
-	//		handleResponse(c, "error is while getting product", http.StatusInternalServerError, err.Error())
-	//		return
-	//	}
-	//	products[key] = product.Price
-	//}
-
-	fmt.Println("baskets", baskets)
-
 	totalPrice := 0
+	receivedProducts := make(map[string]int)
+	basketPrices := make(map[string]int)
 
 	for _, value := range baskets.Baskets {
 		totalPrice += value.Price
+		receivedProducts[value.ProductID] = value.Quantity
+		basketPrices[value.ProductID] = value.Price
 	}
 
-	fmt.Println("totalprice", totalPrice)
 	id, err := h.storage.Sale().UpdatePrice(context.Background(), totalPrice, saleID)
 	if err != nil {
 		handleResponse(c, "error is while updating price", http.StatusInternalServerError, err.Error())
@@ -73,5 +53,47 @@ func (h Handler) EndSell(c *gin.Context) {
 		handleResponse(c, "error is while getting sale by id", http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	// storagedan prod quantity - quantity
+	repo, err := h.storage.Repository().GetList(context.Background(), models.GetListRequest{
+		Page:  1,
+		Limit: 10,
+	})
+	if err != nil {
+		handleResponse(c, "error while getting repo list", http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	repoMap := make(map[string]models.Repository)
+	for _, value := range repo.Repositories {
+		repoMap[value.ID] = value
+	}
+
+	for key, value := range repoMap {
+		_, err := h.storage.Repository().Update(context.Background(), models.UpdateRepository{
+			ID:        key, // repoID
+			ProductID: value.ProductID,
+			BranchID:  value.BranchID,
+			Count:     value.Count - receivedProducts[value.ProductID], // repo_count - basket_quantity
+		})
+		if err != nil {
+			handleResponse(c, "error while updating repo prod quantities", http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// storage_transaction -> check
+		_, err = h.storage.RTransaction().Create(context.Background(), models.CreateRepositoryTransaction{
+			StaffID:                   resp.CashierID,
+			ProductID:                 value.ProductID,
+			RepositoryTransactionType: "minus",
+			Price:                     basketPrices[value.ProductID],
+			Quantity:                  receivedProducts[value.ProductID],
+		})
+		if err != nil {
+			handleResponse(c, "error while creating repo transaction", http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
 	handleResponse(c, "success", http.StatusOK, resp)
 }
