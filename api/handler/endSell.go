@@ -33,12 +33,12 @@ func (h Handler) EndSell(c *gin.Context) {
 	}
 
 	totalPrice := 0
-	receivedProducts := make(map[string]int)
+	receivedProducts := make(map[string]models.Basket)
 	basketPrices := make(map[string]int)
 
 	for _, value := range baskets.Baskets {
 		totalPrice += value.Price
-		receivedProducts[value.ProductID] = value.Quantity
+		receivedProducts[value.ProductID] = value
 		basketPrices[value.ProductID] = value.Price
 	}
 
@@ -70,28 +70,31 @@ func (h Handler) EndSell(c *gin.Context) {
 	}
 
 	for key, value := range repoMap {
-		_, err := h.storage.Repository().Update(context.Background(), models.UpdateRepository{
-			ID:        key, // repoID
-			ProductID: value.ProductID,
-			BranchID:  value.BranchID,
-			Count:     value.Count - receivedProducts[value.ProductID], // repo_count - basket_quantity
-		})
-		if err != nil {
-			handleResponse(c, "error while updating repo prod quantities", http.StatusInternalServerError, err.Error())
-			return
-		}
+		// check prodID of repoMap and recievedProd
+		if value.ProductID == receivedProducts[value.ProductID].ProductID {
+			_, err := h.storage.Repository().Update(context.Background(), models.UpdateRepository{
+				ID:        key, // repoID
+				ProductID: value.ProductID,
+				BranchID:  value.BranchID,
+				Count:     value.Count - receivedProducts[value.ProductID].Quantity, // repo_count - basket_quantity
+			})
+			if err != nil {
+				handleResponse(c, "error while updating repo prod quantities", http.StatusInternalServerError, err.Error())
+				return
+			}
 
-		// storage_transaction -> check
-		_, err = h.storage.RTransaction().Create(context.Background(), models.CreateRepositoryTransaction{
-			StaffID:                   resp.CashierID,
-			ProductID:                 value.ProductID,
-			RepositoryTransactionType: "minus",
-			Price:                     basketPrices[value.ProductID],
-			Quantity:                  receivedProducts[value.ProductID],
-		})
-		if err != nil {
-			handleResponse(c, "error while creating repo transaction", http.StatusInternalServerError, err.Error())
-			return
+			// storage_transaction -> check
+			_, err = h.storage.RTransaction().Create(context.Background(), models.CreateRepositoryTransaction{
+				StaffID:                   resp.CashierID,
+				ProductID:                 value.ProductID,
+				RepositoryTransactionType: "minus",
+				Price:                     basketPrices[value.ProductID],
+				Quantity:                  receivedProducts[value.ProductID].Quantity,
+			})
+			if err != nil {
+				handleResponse(c, "error while creating repo transaction", http.StatusInternalServerError, err.Error())
+				return
+			}
 		}
 	}
 
