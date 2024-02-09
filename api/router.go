@@ -20,6 +20,7 @@ func New(storage storage.IStorage) *gin.Engine {
 
 	r.POST("/sell", h.StartSell)
 	r.PUT("/end-sell/:id", h.EndSell)
+	r.POST("/barcode", h.Barcode)
 
 	r.POST("/category", h.CreateCategory)
 	r.GET("/category/:id", h.GetCategory)

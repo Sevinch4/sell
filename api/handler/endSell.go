@@ -34,12 +34,10 @@ func (h Handler) EndSell(c *gin.Context) {
 
 	totalPrice := 0
 	receivedProducts := make(map[string]models.Basket)
-	basketPrices := make(map[string]int)
 
 	for _, value := range baskets.Baskets {
 		totalPrice += value.Price
 		receivedProducts[value.ProductID] = value
-		basketPrices[value.ProductID] = value.Price
 	}
 
 	id, err := h.storage.Sale().UpdatePrice(context.Background(), totalPrice, saleID)
@@ -88,7 +86,7 @@ func (h Handler) EndSell(c *gin.Context) {
 				StaffID:                   resp.CashierID,
 				ProductID:                 value.ProductID,
 				RepositoryTransactionType: "minus",
-				Price:                     basketPrices[value.ProductID],
+				Price:                     receivedProducts[value.ProductID].Price,
 				Quantity:                  receivedProducts[value.ProductID].Quantity,
 			})
 			if err != nil {
@@ -97,6 +95,11 @@ func (h Handler) EndSell(c *gin.Context) {
 			}
 		}
 	}
+
+	// salary logic sale->succes bosa check qib ketsh
+	//
+	// cancel oldndan qilb qoysh status cash tekshirish -> transaction_type withdraw
+	// source_type = sales
 
 	handleResponse(c, "success", http.StatusOK, resp)
 }

@@ -15,6 +15,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/barcode": {
+            "post": {
+                "description": "barcode",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "barcode"
+                ],
+                "summary": "barcode",
+                "parameters": [
+                    {
+                        "description": "info",
+                        "name": "info",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Barcode"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/models.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/basket": {
             "post": {
                 "description": "create a new basket",
@@ -2847,6 +2899,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.Barcode": {
+            "type": "object",
+            "properties": {
+                "barcode": {
+                    "type": "integer"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "sale_id": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Basket": {
             "type": "object",
             "properties": {
