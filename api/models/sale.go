@@ -40,3 +40,9 @@ type SaleResponse struct {
 	Sales []Sale
 	Count int
 }
+
+type SaleRequest struct {
+	SaleID     string `json:"-"`
+	TotalPrice int    `json:"-"`
+	Status     string `json:"status"`
+}

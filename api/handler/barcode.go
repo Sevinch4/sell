@@ -33,7 +33,13 @@ func (h Handler) Barcode(c *gin.Context) {
 	}
 
 	if sale.Status == "success" {
-		handleResponse(c, "sale ended, cannot add", http.StatusBadRequest, err.Error())
+		handleResponse(c, "sale ended", 300, "sale ended cannot add product")
+		return
+	}
+
+	if sale.Status == "cancel" {
+		handleResponse(c, "sale canceled", 300, "sale canceled cannot add product")
+		return
 	}
 
 	products, err := h.storage.Product().GetList(context.Background(), models.ProductGetListRequest{
@@ -75,7 +81,7 @@ func (h Handler) Barcode(c *gin.Context) {
 	totalPrice = info.Count * prodPrice
 
 	for _, basket := range baskets.Baskets {
-		basketsMap[basket.ProductID] = basket // basketID olsh mmkn
+		basketsMap[basket.ProductID] = basket
 	}
 
 	repo, err := h.storage.Repository().GetList(context.Background(), models.GetListRequest{
@@ -88,8 +94,8 @@ func (h Handler) Barcode(c *gin.Context) {
 	}
 
 	for _, r := range repo.Repositories {
-		// update un
 		if prodID == basketsMap[r.ProductID].ProductID {
+			// update un
 			if r.Count < (basketsMap[r.ProductID].Quantity + info.Count) {
 				handleResponse(c, "not enough product", 301, "not enough product")
 				return
@@ -97,11 +103,9 @@ func (h Handler) Barcode(c *gin.Context) {
 		}
 
 		// create un
-		if prodID == r.ProductID {
-			if r.Count < info.Count {
-				handleResponse(c, "not enough product", 300, "not enough product")
-				return
-			}
+		if r.Count < info.Count {
+			handleResponse(c, "not enough product", 300, "not enough product")
+			return
 		}
 	}
 
@@ -113,7 +117,7 @@ func (h Handler) Barcode(c *gin.Context) {
 			id, err := h.storage.Basket().Update(context.Background(), models.UpdateBasket{
 				ID:        value.ID,
 				SaleID:    value.SaleID,
-				ProductID: value.ProductID,
+				ProductID: prodID,
 				Quantity:  value.Quantity + info.Count,
 				Price:     value.Price + totalPrice,
 			})

@@ -307,6 +307,11 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.SaleRequest:
+    properties:
+      status:
+        type: string
+    type: object
   models.Staff:
     properties:
       age:
@@ -1096,6 +1101,12 @@ paths:
         name: id
         required: true
         type: string
+      - description: status
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/models.SaleRequest'
       produces:
       - application/json
       responses:

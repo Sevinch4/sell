@@ -91,7 +91,7 @@ type ISaleStorage interface {
 	GetList(context.Context, models.GetListRequest) (models.SaleResponse, error)
 	Update(context.Context, models.UpdateSale) (string, error)
 	Delete(context.Context, string) error
-	UpdatePrice(context.Context, int, string) (string, error)
+	UpdatePrice(context.Context, models.SaleRequest) (string, error)
 }
 
 type ITransactionStorage interface {

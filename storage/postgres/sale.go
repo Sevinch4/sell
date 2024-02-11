@@ -140,9 +140,9 @@ func (s saleRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s saleRepo) UpdatePrice(ctx context.Context, totalSum int, id string) (string, error) {
-	query := `update sales set price = $1, status = 'success' where id = $2`
-	if rowsAffected, err := s.db.Exec(ctx, query, &totalSum, &id); err != nil {
+func (s saleRepo) UpdatePrice(ctx context.Context, request models.SaleRequest) (string, error) {
+	query := `update sales set price = $1, status = $2 where id = $3`
+	if rowsAffected, err := s.db.Exec(ctx, query, &request.TotalPrice, &request.Status, &request.SaleID); err != nil {
 		if r := rowsAffected.RowsAffected(); r == 0 {
 			fmt.Println("error in rows affected", err.Error())
 			return "", err
@@ -150,5 +150,5 @@ func (s saleRepo) UpdatePrice(ctx context.Context, totalSum int, id string) (str
 		fmt.Println("error is while updating sale price", err.Error())
 		return "", err
 	}
-	return id, nil
+	return request.SaleID, nil
 }

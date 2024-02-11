@@ -885,6 +885,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "status",
+                        "name": "status",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SaleRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -3369,6 +3378,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SaleRequest": {
+            "type": "object",
+            "properties": {
+                "status": {
                     "type": "string"
                 }
             }
