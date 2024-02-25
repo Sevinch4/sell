@@ -113,7 +113,6 @@ CREATE TABLE transactions (
 create table repository_transactions(
                                         id uuid primary key ,
                                         branch_id uuid references branches(id),
-                                        staff_id uuid references staffs(id),
                                         product_id uuid references products(id),
                                         repository_transaction_type repository_transaction_type_enum,
                                         price int,

@@ -17,6 +17,8 @@ type IStorage interface {
 	Branch() IBranchStorage
 	Sale() ISaleStorage
 	Transaction() ITransactionStorage
+	Income() IIncomeStorage
+	IncomeProducts() IIncomeProductsStorage
 }
 
 type IStaffTariffRepo interface {
@@ -35,6 +37,7 @@ type IStaffRepo interface {
 	DeleteStaff(context.Context, string) error
 	GetPassword(context.Context, string) (string, error)
 	UpdatePassword(context.Context, models.UpdateStaffPassword) error
+	UpdateBalance(context.Context, models.UpdateBalanceRequest) error
 }
 
 type IRepositoryRepo interface {
@@ -99,5 +102,21 @@ type ITransactionStorage interface {
 	GetByID(context.Context, string) (models.Transaction, error)
 	GetList(context.Context, models.TransactionGetListRequest) (models.TransactionResponse, error)
 	Update(context.Context, models.UpdateTransaction) (string, error)
+	Delete(context.Context, string) error
+}
+
+type IIncomeStorage interface {
+	Create(context.Context, models.CreateIncome) (string, error)
+	GetByID(context.Context, string) (models.Income, error)
+	GetList(context.Context, models.IncomeGetListRequest) (models.IncomeResponse, error)
+	Update(context.Context, models.UpdateIncome) (string, error)
+	Delete(context.Context, string) error
+}
+
+type IIncomeProductsStorage interface {
+	Create(context.Context, models.CreateIncomeProduct) (string, error)
+	GetByID(context.Context, string) (models.IncomeProduct, error)
+	GetList(context.Context, models.IncomeProductRequest) (models.IncomeProductsResponse, error)
+	Update(context.Context, models.UpdateIncomeProduct) (string, error)
 	Delete(context.Context, string) error
 }

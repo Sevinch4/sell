@@ -116,3 +116,11 @@ func (s *Store) Basket() storage.IBasketRepo {
 func (s *Store) RTransaction() storage.IRepositoryTransactionRepo {
 	return NewRepositoryTransactionRepo(s.Pool)
 }
+
+func (s *Store) Income() storage.IIncomeStorage {
+	return NewIncomeRepo(s.Pool)
+}
+
+func (s *Store) IncomeProducts() storage.IIncomeProductsStorage {
+	return NewIncomeProductsRepo(s.Pool)
+}

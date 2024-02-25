@@ -39,21 +39,46 @@ func (h Handler) EndSell(c *gin.Context) {
 		return
 	}
 
-	totalPrice := 0
+	saleData, err := h.storage.Sale().GetByID(context.Background(), saleID)
+	if err != nil {
+		handleResponse(c, "error is while getting sale data", http.StatusInternalServerError, err.Error())
+		return
+	}
+	saleTotalPrice := 0
 	receivedProducts := make(map[string]models.Basket)
 
 	for _, value := range baskets.Baskets {
-		totalPrice += value.Price
+		saleTotalPrice += value.Price
 		receivedProducts[value.ProductID] = value
 	}
 
 	if request.Status == "cancel" {
-		totalPrice = 0
+		saleCancelID, err := h.storage.Sale().UpdatePrice(context.Background(), models.SaleRequest{
+			SaleID:     saleID,
+			TotalPrice: 0,
+			Status:     "cancel",
+		})
+		if err != nil {
+			handleResponse(c, "error is while updating cancel sale", http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		_, err = h.storage.Transaction().Create(context.Background(), models.CreateTransaction{
+			SaleID:          saleID,
+			StaffID:         saleData.ShopAssistantID,
+			TransactionType: "withdraw",
+			SourceType:      "sales",
+			Amount:          0,
+			Description:     "sale canceled",
+		})
+
+		handleResponse(c, "success", http.StatusOK, saleCancelID)
+		return
 	}
 
 	updatedSalePrice, err := h.storage.Sale().UpdatePrice(context.Background(), models.SaleRequest{
 		SaleID:     saleID,
-		TotalPrice: totalPrice,
+		TotalPrice: saleTotalPrice,
 		Status:     request.Status,
 	})
 	if err != nil {
@@ -64,23 +89,6 @@ func (h Handler) EndSell(c *gin.Context) {
 	response, err := h.storage.Sale().GetByID(context.Background(), updatedSalePrice)
 	if err != nil {
 		handleResponse(c, "error is while getting sale by updatedSalePrice", http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if request.Status == "cancel" {
-		_, err = h.storage.Transaction().Create(context.Background(), models.CreateTransaction{
-			SaleID:          saleID,
-			StaffID:         response.CashierID,
-			TransactionType: "withdraw",
-			SourceType:      "sales",
-			Amount:          float64(totalPrice),
-			Description:     "sale canceled nothing sold",
-		})
-		if err != nil {
-			handleResponse(c, "error is while creating transaction for staff", http.StatusInternalServerError, err.Error())
-			return
-		}
-		handleResponse(c, "success", http.StatusOK, response)
 		return
 	}
 
@@ -112,7 +120,6 @@ func (h Handler) EndSell(c *gin.Context) {
 			}
 
 			_, err = h.storage.RTransaction().Create(context.Background(), models.CreateRepositoryTransaction{
-				StaffID:                   response.CashierID,
 				ProductID:                 value.ProductID,
 				RepositoryTransactionType: "minus",
 				Price:                     receivedProducts[value.ProductID].Price,
@@ -122,82 +129,101 @@ func (h Handler) EndSell(c *gin.Context) {
 				handleResponse(c, "error while creating repositoryData transaction", http.StatusInternalServerError, err.Error())
 				return
 			}
+
 		}
 	}
 
-	tariffs, err := h.storage.StaffTariff().GetStaffTariffList(context.Background(), models.GetListRequest{
-		Page:  1,
-		Limit: 10,
-	})
+	responseCashier, err := h.storage.Staff().StaffByID(context.Background(), models.PrimaryKey{ID: response.CashierID})
 	if err != nil {
-		handleResponse(c, "error is while getting staff tariff list", http.StatusBadRequest, err.Error())
+		handleResponse(c, "error while getting cashier by id", http.StatusInternalServerError, err.Error())
+		return
+	}
+	responseCashierTariff, err := h.storage.StaffTariff().GetStaffTariffByID(context.Background(), models.PrimaryKey{ID: responseCashier.TariffID})
+	if err != nil {
+		handleResponse(c, "error while getting cashier tariff by id", http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	staffs, err := h.storage.Staff().GetStaffTList(context.Background(), models.GetListRequest{
-		Page:  1,
-		Limit: 10,
-	})
+	balance := 0
 
-	staffsMap := make(map[string]models.Staff)
-	staffBalance := make(map[string]uint)
-	for _, staff := range staffs.Staffs {
-		if response.CashierID == staff.ID || response.ShopAssistantID == staff.ID {
-			staffsMap[staff.TariffID] = staff
-			staffBalance[staff.TariffID] = staff.Balance
-		}
-	}
-
-	tariffsMap := make(map[string]models.StaffTariff)
-	for _, tariff := range tariffs.StaffTariffs {
-		if tariffsMap[tariff.ID].ID == staffsMap[tariff.ID].TariffID {
-			continue
-		}
-		tariffsMap[tariff.ID] = tariff
-	}
-
-	for _, tariff := range tariffsMap {
-		switch {
-		case tariff.TariffType == "fixed":
-			switch response.PaymentType {
-			case "cash":
-				staffBalance[tariff.ID] += uint(tariff.AmountForCash)
-			case "card":
-				staffBalance[tariff.ID] += uint(tariff.AmountForCard)
-			}
-		case tariff.TariffType == "percent":
-			switch response.PaymentType {
-			case "cash":
-				staffBalance[tariff.ID] += uint(totalPrice * tariff.AmountForCash / 100)
-			case "card":
-				staffBalance[tariff.ID] += uint(totalPrice * tariff.AmountForCard / 100)
-			}
-		}
-
-		_, err := h.storage.Staff().UpdateStaff(context.Background(), models.UpdateStaff{
-			ID:        staffsMap[tariff.ID].ID,
-			BranchID:  staffsMap[tariff.ID].BranchID,
-			TariffID:  staffsMap[tariff.ID].TariffID,
-			StaffType: staffsMap[tariff.ID].StaffType,
-			Name:      staffsMap[tariff.ID].Name,
-			Balance:   staffBalance[tariff.ID],
-			Login:     staffsMap[tariff.ID].Login,
-		})
+	if response.ShopAssistantID != "" {
+		responseShopAssistant, err := h.storage.Staff().StaffByID(context.Background(), models.PrimaryKey{ID: response.ShopAssistantID})
 		if err != nil {
-			handleResponse(c, "error is while updating staff", http.StatusInternalServerError, err.Error())
+			handleResponse(c, "error while getting shop assistant by id", http.StatusInternalServerError, err.Error())
 			return
 		}
-
-		_, err = h.storage.Transaction().Create(context.Background(), models.CreateTransaction{
-			SaleID:          saleID,
-			StaffID:         staffsMap[tariff.ID].ID,
-			TransactionType: "topup",
-			SourceType:      "sales",
-			Amount:          float64(totalPrice),
-			Description:     "staff sell products",
-		})
+		responseShopAssistantTariff, err := h.storage.StaffTariff().GetStaffTariffByID(context.Background(), models.PrimaryKey{ID: responseShopAssistant.TariffID})
 		if err != nil {
-			handleResponse(c, "error is while creating transaction for staff", http.StatusInternalServerError, err.Error())
+			handleResponse(c, "error while getting shop assistant tariff by id", http.StatusInternalServerError, err.Error())
+			return
+		}
+		if responseShopAssistantTariff.TariffType == "fixed" {
+			if response.PaymentType == "cash" {
+				balance += responseShopAssistantTariff.AmountForCash
+			} else {
+				balance += responseShopAssistantTariff.AmountForCard
+			}
+		} else if responseShopAssistantTariff.TariffType == "percent" {
+			if response.PaymentType == "cash" {
+				balance += (responseShopAssistantTariff.AmountForCash * saleTotalPrice) / 100
+			} else {
+				balance += (responseShopAssistantTariff.AmountForCard * saleTotalPrice) / 100
+			}
+		}
+
+		//_, err = h.storage.Staff().UpdateStaff(context.Background(), models.UpdateStaff{
+		//	ID:        responseShopAssistant.ID,
+		//	BranchID:  response.BranchID,
+		//	TariffID:  responseShopAssistant.TariffID,
+		//	StaffType: responseShopAssistant.StaffType,
+		//	Name:      responseShopAssistant.Name,
+		//	Balance:   uint(balance),
+		//	Login:     responseShopAssistant.Login,
+		//})
+		//if err != nil {
+		//	handleResponse(c, "error is while updating staff", http.StatusInternalServerError, err.Error())
+		//	return
+		//}
+
+		if responseCashierTariff.TariffType == "fixed" {
+			if response.PaymentType == "cash" {
+				balance += responseCashierTariff.AmountForCash
+			} else {
+				balance += responseCashierTariff.AmountForCard
+			}
+		} else if responseCashierTariff.TariffType == "percent" {
+			if response.PaymentType == "cash" {
+				balance += (responseCashierTariff.AmountForCash * saleTotalPrice) / 100
+			} else {
+				balance += (responseCashierTariff.AmountForCard * saleTotalPrice) / 100
+			}
+		}
+		//_, err = h.storage.Staff().UpdateStaff(context.Background(), models.UpdateStaff{
+		//	ID:        responseCashier.ID,
+		//	BranchID:  response.BranchID,
+		//	TariffID:  responseCashier.TariffID,
+		//	StaffType: responseCashier.StaffType,
+		//	Name:      responseCashier.Name,
+		//	Balance:   uint(balance),
+		//	Login:     responseCashier.Login,
+		//})
+		updateBalance := models.UpdateBalanceRequest{
+			TransactionType: "topup",
+			Source:          "sales",
+			ShopAssistant: models.StaffType{
+				ID:      responseShopAssistant.ID,
+				Balance: uint(balance),
+			},
+			Cashier: models.StaffType{
+				ID:      responseCashier.ID,
+				Balance: uint(balance),
+			},
+			Text:   "some",
+			SaleID: saleID,
+		}
+
+		if err := h.storage.Staff().UpdateBalance(context.Background(), updateBalance); err != nil {
+			handleResponse(c, "error is while updating staff", http.StatusInternalServerError, err.Error())
 			return
 		}
 	}

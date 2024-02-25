@@ -201,3 +201,60 @@ func (s *staffRepo) UpdatePassword(ctx context.Context, request models.UpdateSta
 
 	return nil
 }
+func (s *staffRepo) UpdateBalance(ctx context.Context, request models.UpdateBalanceRequest) error {
+	transaction, err := s.DB.Begin(ctx)
+
+	defer func() {
+		if err != nil {
+			transaction.Rollback(ctx)
+		} else {
+			transaction.Commit(ctx)
+		}
+	}()
+
+	updateQuery1 := `update staffs set balance = balance + $1 where id = $2`
+	if _, err := s.DB.Exec(ctx, updateQuery1, &request.Cashier.Balance, &request.Cashier.ID); err != nil {
+		fmt.Println("error is while updating cashier balance", err.Error())
+		return err
+	}
+
+	insertQuery := `insert into transactions (id, sale_id, staff_id, transaction_type, source_type, amount, description) 
+                                  values ($1, $2, $3, $4, $5, $6, $7)`
+	if _, err := s.DB.Exec(ctx, insertQuery,
+		uuid.New(),
+		request.SaleID,
+		request.Cashier.ID,
+		request.TransactionType,
+		request.Source,
+		request.Cashier.Balance, // amount total should be
+		request.Text,
+	); err != nil {
+		fmt.Println("error is while inserting transaction data", err.Error())
+		return err
+	}
+
+	if request.ShopAssistant.ID != "" {
+		updateQuery2 := `update staffs set balance = balance + $1 where id = $2`
+		if _, err := s.DB.Exec(ctx, updateQuery2, &request.ShopAssistant.Balance, &request.ShopAssistant.ID); err != nil {
+			fmt.Println("error is while updating cashier balance", err.Error())
+			return err
+		}
+		insertQuery2 := `insert into transactions (id, sale_id, staff_id, transaction_type, source_type, amount, description) 
+                                  values ($1, $2, $3, $4, $5, $6, $7)`
+		if _, err := s.DB.Exec(ctx, insertQuery2,
+			uuid.New(),
+			request.SaleID,
+			request.ShopAssistant.ID,
+			request.TransactionType,
+			request.Source,
+			request.ShopAssistant.Balance, // amount total should be
+			request.Text,
+		); err != nil {
+			fmt.Println("error is while inserting transaction data", err.Error())
+			return err
+		}
+
+	}
+
+	return nil
+}

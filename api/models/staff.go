@@ -48,3 +48,16 @@ type UpdateStaffPassword struct {
 	NewPassword string `json:"new_password"`
 	OldPassword string `json:"old_password"`
 }
+
+type StaffType struct {
+	ID      string `json:"id"`
+	Balance uint   `json:"balance"`
+}
+type UpdateBalanceRequest struct {
+	TransactionType string    `json:"transaction_type"`
+	Source          string    `json:"source"`
+	ShopAssistant   StaffType `json:"shop_assistant"`
+	Cashier         StaffType `json:"cashier"`
+	Text            string    `json:"text"`
+	SaleID          string    `json:"sale_id"`
+}

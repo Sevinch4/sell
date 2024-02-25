@@ -18,6 +18,8 @@ func New(storage storage.IStorage) *gin.Engine {
 
 	r := gin.New()
 
+	r.Use(gin.Logger())
+
 	r.POST("/sell", h.StartSell)
 	r.PUT("/end-sell/:id", h.EndSell)
 	r.POST("/barcode", h.Barcode)
@@ -82,6 +84,18 @@ func New(storage storage.IStorage) *gin.Engine {
 	r.GET("/rtransactions", h.GetRepositoryTransactionList)
 	r.PUT("/rtransaction/:id", h.UpdateRepositoryTransaction)
 	r.DELETE("/rtransaction/:id", h.DeleteRepositoryTransaction)
+
+	r.POST("/income", h.CreateIncome)
+	r.GET("/income/:id", h.GetIncome)
+	r.GET("/incomes", h.GetIncomeList)
+	r.PUT("/income/:id", h.UpdateIncome)
+	r.DELETE("/income/:id", h.DeleteIncome)
+
+	r.POST("/income-product", h.CreateIncomeProduct)
+	r.GET("/income-product/:id", h.GetIncomeProduct)
+	r.GET("/income-products", h.GetIncomeProductsList)
+	r.PUT("/income-product/:id", h.UpdateIncomeProduct)
+	r.DELETE("/income-product/:id", h.DeleteIncomeProduct)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.Run(":8080")

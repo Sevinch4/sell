@@ -4,7 +4,6 @@ import "time"
 
 type RepositoryTransaction struct {
 	ID                        string     `json:"id"`
-	StaffID                   string     `json:"staff_id"`
 	ProductID                 string     `json:"product_id"`
 	RepositoryTransactionType string     `json:"repository_transaction_type"`
 	Price                     int        `json:"price"`
@@ -15,7 +14,6 @@ type RepositoryTransaction struct {
 }
 
 type CreateRepositoryTransaction struct {
-	StaffID                   string `json:"staff_id"`
 	ProductID                 string `json:"product_id"`
 	RepositoryTransactionType string `json:"repository_transaction_type"`
 	Price                     int    `json:"price"`
@@ -24,7 +22,6 @@ type CreateRepositoryTransaction struct {
 
 type UpdateRepositoryTransaction struct {
 	ID                        string `json:"-"`
-	StaffID                   string `json:"staff_id"`
 	ProductID                 string `json:"product_id"`
 	RepositoryTransactionType string `json:"repository_transaction_type"`
 	Price                     int    `json:"price"`

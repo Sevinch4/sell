@@ -22,12 +22,13 @@ func NewRepositoryTransactionRepo(DB *pgxpool.Pool) storage.IRepositoryTransacti
 
 func (s *repositoryTransactionRepo) Create(ctx context.Context, rtransaction models.CreateRepositoryTransaction) (string, error) {
 	id := uuid.New().String()
+	fmt.Println("id", id)
+	fmt.Println("prod id", rtransaction.ProductID)
 
 	if _, err := s.DB.Exec(ctx, `INSERT INTO repository_transactions
-		(id, staff_id, product_id, repository_transaction_type, price, quantity)
-			VALUES($1, $2, $3, $4, $5, $6)`,
+		(id, product_id, repository_transaction_type, price, quantity)
+			VALUES($1, $2, $3, $4, $5)`,
 		id,
-		rtransaction.StaffID,
 		rtransaction.ProductID,
 		rtransaction.RepositoryTransactionType,
 		rtransaction.Price,
@@ -42,13 +43,12 @@ func (s *repositoryTransactionRepo) Create(ctx context.Context, rtransaction mod
 
 func (s *repositoryTransactionRepo) GetByID(ctx context.Context, id models.PrimaryKey) (models.RepositoryTransaction, error) {
 	rtransaction := models.RepositoryTransaction{}
-	query := `SELECT id, staff_id, product_id, repository_transaction_type, price, quantity, created_at, updated_at 
+	query := `SELECT id, product_id, repository_transaction_type, price, quantity, created_at, updated_at 
 							FROM repository_transactions WHERE id = $1 and deleted_at is null
 `
 
 	err := s.DB.QueryRow(ctx, query, id.ID).Scan(
 		&rtransaction.ID,
-		&rtransaction.StaffID,
 		&rtransaction.ProductID,
 		&rtransaction.RepositoryTransactionType,
 		&rtransaction.Price,
@@ -72,7 +72,9 @@ func (s *repositoryTransactionRepo) GetList(ctx context.Context, req models.GetL
 
 	countQuery := `SELECT COUNT(*) FROM repository_transactions where deleted_at is null `
 	if req.Search != "" {
-		countQuery += fmt.Sprintf(` and quantity = %s`, req.Search)
+		fmt.Println("req.search", req.Search)
+		countQuery += fmt.Sprintf(` and product_id = '%s'`, req.Search)
+		fmt.Println("count query", countQuery)
 	}
 
 	err := s.DB.QueryRow(ctx, countQuery).Scan(&count)
@@ -81,13 +83,15 @@ func (s *repositoryTransactionRepo) GetList(ctx context.Context, req models.GetL
 		return models.RepositoryTransactionsResponse{}, err
 	}
 
-	query := `SELECT id, staff_id, product_id, repository_transaction_type, price, quantity, created_at, updated_at 
+	query := `SELECT id, product_id, repository_transaction_type, price, quantity, created_at, updated_at 
 							FROM repository_transactions where deleted_at is null
 `
 	if req.Search != "" {
-		query += fmt.Sprintf(` and quantity = %s`, req.Search)
+		query += fmt.Sprintf(` and product_id = '%s'`, req.Search)
 	}
 	query += ` order by created_at desc LIMIT $1 OFFSET $2 `
+
+	fmt.Println("query", query)
 
 	rows, err := s.DB.Query(ctx, query, req.Limit, (req.Page-1)*req.Limit)
 	if err != nil {
@@ -100,7 +104,6 @@ func (s *repositoryTransactionRepo) GetList(ctx context.Context, req models.GetL
 		rtransaction := models.RepositoryTransaction{}
 		err := rows.Scan(
 			&rtransaction.ID,
-			&rtransaction.StaffID,
 			&rtransaction.ProductID,
 			&rtransaction.RepositoryTransactionType,
 			&rtransaction.Price,
@@ -122,12 +125,11 @@ func (s *repositoryTransactionRepo) GetList(ctx context.Context, req models.GetL
 }
 
 func (s *repositoryTransactionRepo) Update(ctx context.Context, transaction models.UpdateRepositoryTransaction) (string, error) {
-	query := `UPDATE repository_transactions SET staff_id = $1, product_id = $2, repository_transaction_type = $3, 
-                                   price = $4, quantity = $5, updated_at = NOW() WHERE id = $6
+	query := `UPDATE repository_transactions SET  product_id = $1, repository_transaction_type = $2, 
+                                   price = $3, quantity = $4, updated_at = NOW() WHERE id = $5
 `
 
 	_, err := s.DB.Exec(ctx, query,
-		&transaction.StaffID,
 		&transaction.ProductID,
 		&transaction.RepositoryTransactionType,
 		&transaction.Price,
